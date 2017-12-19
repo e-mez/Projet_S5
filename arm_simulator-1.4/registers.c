@@ -25,10 +25,13 @@ Contact: Guillaume.Huard@imag.fr
 #include <stdlib.h>
 
 struct registers_data {
+	uint32_t *r_data; 
 };
 
 registers registers_create() {
-    registers r = NULL;
+    //registers r = NULL;
+    registers r = malloc(sizeof(struct registers_data));
+    r->r_data = malloc(sizeof(uint32_t) * 18); // 17 cases pour les 17 registres de base
     return r;
 }
 
@@ -36,45 +39,61 @@ void registers_destroy(registers r) {
 }
 
 uint8_t get_mode(registers r) {
-    return 0;
+	// la mode est dans les bits 0-4 du CPSR (qui lui meme est dans l'indice 17 du tableau de registres)
+
+	uint8_t mode = (uint8_t) (r->r_data[16] & 0b1111);
+    return mode;
+    // TO DO: vérifier que le boutisme ne posera pas problème
 } 
 
 int current_mode_has_spsr(registers r) {
-    return 0;
+	return ((get_mode(r) != USR) || (get_mode(r) != SYS));
 }
 
 int in_a_privileged_mode(registers r) {
-    return 0;
+    return get_mode(r) != USR;
 }
 
 uint32_t read_register(registers r, uint8_t reg) {
     uint32_t value=0;
+    value = r->r_data[reg]; // lit le registre à l'indice reg
     return value;
 }
 
 uint32_t read_usr_register(registers r, uint8_t reg) {
     uint32_t value=0;
+    if (!in_a_privileged_mode(r)) // USR est la seule mode qui n'est pas privilegé 
+    	value = r->r_data[reg];
     return value;
 }
 
 uint32_t read_cpsr(registers r) {
     uint32_t value=0;
+    value = r->r_data[16];
     return value;
 }
 
 uint32_t read_spsr(registers r) {
     uint32_t value=0;
+    if (current_mode_has_spsr(r))
+    	value = r->r_data[17];
     return value;
 }
 
 void write_register(registers r, uint8_t reg, uint32_t value) {
+	r->r_data[reg] = value;
 }
 
 void write_usr_register(registers r, uint8_t reg, uint32_t value) {
+	if (!in_a_privileged_mode(r))
+		r->r_data[reg] = value;
 }
 
 void write_cpsr(registers r, uint32_t value) {
+	r->r_data[16] = value;
 }
 
 void write_spsr(registers r, uint32_t value) {
+	if (current_mode_has_spsr(r))
+    	r->r_data[17] = value;
 }
