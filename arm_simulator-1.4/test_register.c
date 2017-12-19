@@ -9,7 +9,7 @@ int main() {
 	num = 100;
 	write_register(r, 3, USR); // num == 10 
 	printf("Register 5 contains %d\nRegister 3 contains %d\n", read_register(r, 5), read_register(r, 3));
-	write_usr_register(r, 16, USR);
+	write_register(r, 16, USR);
 	printf("Mode: %d\n", get_mode(r));
 	if (current_mode_has_spsr(r)) 
 		printf("Has SPSR\n");

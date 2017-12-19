@@ -36,18 +36,21 @@ registers registers_create() {
 }
 
 void registers_destroy(registers r) {
+	free(r->r_data);
 }
 
 uint8_t get_mode(registers r) {
-	// la mode est dans les bits 0-4 du CPSR (qui lui meme est dans l'indice 17 du tableau de registres)
+	// la mode est dans les bits 0-4 du CPSR (qui lui meme est dans l'indice 1 du tableau de registres)
 
-	uint8_t mode = (uint8_t) (r->r_data[16] & 0b1111);
+	uint8_t mode = (uint8_t) (r->r_data[16] & 0b11111);
     return mode;
     // TO DO: vérifier que le boutisme ne posera pas problème
 } 
 
 int current_mode_has_spsr(registers r) {
-	return ((get_mode(r) != USR) || (get_mode(r) != SYS));
+	if ((get_mode(r) == USR) || (get_mode(r) == SYS))
+		return 0;
+	return 1;
 }
 
 int in_a_privileged_mode(registers r) {
