@@ -37,6 +37,7 @@ registers registers_create() {
 
 void registers_destroy(registers r) {
 	free(r->r_data);
+	free(r);
 }
 
 uint8_t get_mode(registers r) {
@@ -48,7 +49,8 @@ uint8_t get_mode(registers r) {
 } 
 
 int current_mode_has_spsr(registers r) {
-	if ((get_mode(r) == USR) || (get_mode(r) == SYS))
+	uint8_t mode = get_mode(r);
+	if ((mode == USR) || (mode == SYS))
 		return 0;
 	return 1;
 }

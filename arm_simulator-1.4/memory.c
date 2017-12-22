@@ -25,37 +25,59 @@ Contact: Guillaume.Huard@imag.fr
 #include "util.h"
 
 struct memory_data {
+	int is_big_endian;
+	uint8_t *address;
+	size_t size;
 };
 
 memory memory_create(size_t size, int is_big_endian) {
-    memory mem=NULL;
-    return mem;
+    memory mem = malloc(sizeof(struct memory_data));
+    if (mem != NULL) {
+    	mem->address = malloc(sizeof(uint8_t) * size);
+		mem->size = size;
+    	mem->is_big_endian = is_big_endian;
+    	return mem;
+    }    
+    return NULL;
 }
 
 size_t memory_get_size(memory mem) {
-    return 0;
+    return mem->size;
 }
 
 void memory_destroy(memory mem) {
+	free(mem->address);
+	free(mem);
 }
 
 int memory_read_byte(memory mem, uint32_t address, uint8_t *value) {
-    return -1;
+    *value = mem->address[address];
+    return 0;
 }
 
 int memory_read_half(memory mem, uint32_t address, uint16_t *value) {
-    return -1;
+    if (mem->is_big_endian)
+    	*value = mem->address[address] << 8 | mem->address[address+1];
+    else 
+    	*value = mem->address[address+1] << 8 | mem->address[address];
+    return 0;
 }
 
 int memory_read_word(memory mem, uint32_t address, uint32_t *value) {
-    return -1;
+    if (mem->is_big_endian)
+    	*value = mem->address[address] << 24 | mem->address[address+1] << 16 | mem->address[address+2] << 8 | mem->address[address+3];
+    else
+    	*value = mem->address[address+3] << 24 | mem->address[address+2] << 16 | mem->address[address+1] << 8 | mem->address[address];
+    return 0;
 }
 
 int memory_write_byte(memory mem, uint32_t address, uint8_t value) {
-    return -1;
+    mem->address[address] = value;
+    return 0;
 }
 
 int memory_write_half(memory mem, uint32_t address, uint16_t value) {
+   
     return -1;
 }
 

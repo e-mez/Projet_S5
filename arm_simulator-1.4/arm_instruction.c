@@ -29,6 +29,53 @@ Contact: Guillaume.Huard@imag.fr
 #include "util.h"
 
 static int arm_execute_instruction(arm_core p) {
+	uint32_t opc, instr, bits26_27, res, arm_decode;
+	res = arm_fetch(p, &instr);
+	bits26_27 = get_bits(res, 27, 26);
+	int bit25 = get_bit(res, 25);
+	switch(bits26_27) {
+		case Ob00: // data processing and miscellaneous instructions
+			int bit23_24 = get_bits(res, 24, 23);
+			int bit20 = get_bit(res, 20);
+			
+			if ((bit23_24 == 0b10) && (bit20 == 0)) {
+				arm_decode = arm_miscellaneous(p, instr);
+			}
+			else {
+				if (bit25 == 0){
+					// verify this again. bit25(a.k.a I bit) distinguishes btw immediate
+					// shifter operand and a register-based shifter operand
+					// If bit25==0 && bit4==1 && bit7==1, the instruction is not a data-processing instruction,
+					// but lies in the arithmetic or Load/Store instruction extension space:
+					arm_decode = arm_data_processing_shift(p, instr);
+				}
+				else if (bit25 == 1) {
+					arm_decode = arm_data_processing_immediate_msr(p, instr);
+				}
+			}
+			break;
+
+		case Ob01: //  load/store instructions
+			arm_decode = arm_load_store(p, instr);
+			break;		
+
+		case Ob10: // branchement and load/store multiple
+			if (bit25 == 0) {
+				// load/store multiple
+				arm_decode = arm_load_store_multiple(p, instr);
+			}
+			else {
+				arm_decode = arm_branch(p, instr);
+			}
+			
+			break;
+
+		case 0b11: // divers (coprocessor), not implemented
+			if (bit25 == 0)
+				arm_decode = arm_coprocessor_load_store(p, instr);
+			break;
+
+	} 
     return 0;
 }
 
