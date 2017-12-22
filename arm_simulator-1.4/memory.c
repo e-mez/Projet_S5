@@ -1,30 +1,31 @@
 /*
-Armator - simulateur de jeu d'instruction ARMv5T à but pédagogique
+Armator - simulateur de jeu d'instruction ARMv5T ï¿½ but pï¿½dagogique
 Copyright (C) 2011 Guillaume Huard
 Ce programme est libre, vous pouvez le redistribuer et/ou le modifier selon les
-termes de la Licence Publique Générale GNU publiée par la Free Software
-Foundation (version 2 ou bien toute autre version ultérieure choisie par vous).
+termes de la Licence Publique Gï¿½nï¿½rale GNU publiï¿½e par la Free Software
+Foundation (version 2 ou bien toute autre version ultï¿½rieure choisie par vous).
 
-Ce programme est distribué car potentiellement utile, mais SANS AUCUNE
+Ce programme est distribuï¿½ car potentiellement utile, mais SANS AUCUNE
 GARANTIE, ni explicite ni implicite, y compris les garanties de
-commercialisation ou d'adaptation dans un but spécifique. Reportez-vous à la
-Licence Publique Générale GNU pour plus de détails.
+commercialisation ou d'adaptation dans un but spï¿½cifique. Reportez-vous ï¿½ la
+Licence Publique Gï¿½nï¿½rale GNU pour plus de dï¿½tails.
 
-Vous devez avoir reçu une copie de la Licence Publique Générale GNU en même
-temps que ce programme ; si ce n'est pas le cas, écrivez à la Free Software
+Vous devez avoir reï¿½u une copie de la Licence Publique Gï¿½nï¿½rale GNU en mï¿½me
+temps que ce programme ; si ce n'est pas le cas, ï¿½crivez ï¿½ la Free Software
 Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307,
-États-Unis.
+ï¿½tats-Unis.
 
 Contact: Guillaume.Huard@imag.fr
-	 Bâtiment IMAG
+	 Bï¿½timent IMAG
 	 700 avenue centrale, domaine universitaire
-	 38401 Saint Martin d'Hères
+	 38401 Saint Martin d'Hï¿½res
 */
 #include <stdlib.h>
 #include "memory.h"
 #include "util.h"
 
 struct memory_data {
+<<<<<<< HEAD
 	int is_big_endian;
 	uint8_t *address;
 	size_t size;
@@ -73,14 +74,157 @@ int memory_read_word(memory mem, uint32_t address, uint32_t *value) {
 
 int memory_write_byte(memory mem, uint32_t address, uint8_t value) {
     mem->address[address] = value;
+=======
+  uint8_t *add;
+  int be;
+  size_t taille;
+
+};
+
+memory memory_create(size_t size, int is_big_endian) {
+  memory mem = malloc(sizeof(memory));
+  mem->add=malloc(size);
+  if (mem->add == NULL)
+      mem->taille = 0;
+  else
+      mem->taille = size;
+  mem->be = is_big_endian;
+
+  return mem;
+
+}
+
+size_t memory_get_size(memory mem) {
+    size_t  value;
+    value= mem->taille;
+    return value;
+}
+
+void memory_destroy(memory mem) {
+  free(mem->add);
+  free(mem);
+}
+
+int memory_read_byte(memory mem, uint32_t address, uint8_t *value) {
+  if (address <= mem->taille) {
+    *value = mem->add[address];
+    return *value;
+  }
+  else
+    return -1;
+}
+
+int memory_read_half(memory mem, uint32_t address, uint16_t *value) {
+  if (address <= mem->taille) {
+    if (mem->be == 0){
+      uint16_t a = mem->add[address] ;
+      uint16_t b = mem->add[address+1] <<8;
+      *value= a | b ;
+      return *value;
+    }
+    else
+    {
+      uint16_t a = mem->add[address]<<8 ;
+      uint16_t b = mem->add[address+1] ;
+      *value= a | b ;
+      return *value;
+    }
+
+  }
+  else
+    return -1;
+
+}
+
+int memory_read_word(memory mem, uint32_t address, uint32_t *value) {
+  if (address <= mem->taille) {
+    if (mem->be == 0){
+      uint32_t a = mem->add[address] ;
+      uint32_t b = mem->add[address+1] <<8;
+      uint32_t c = mem->add[address+2] <<16;
+      uint32_t d = mem->add[address+3] <<24;
+
+
+      *value= a | b | c | d;
+      return *value;
+    }
+    else
+    {
+      uint32_t a = mem->add[address]<<24 ;
+      uint32_t b = mem->add[address+1] << 16;
+      uint32_t c = mem->add[address+2] <<8;
+      uint32_t d = mem->add[address+3] ;
+
+
+      *value= a | b | c | d  ;
+      return *value;
+    }
+  }
+  else
+    {
+      return -1;
+    }
+}
+
+int memory_write_byte(memory mem, uint32_t address, uint8_t value) {
+    mem->add[address] = value;
+>>>>>>> 5ce39e2a1df85e6042dd7d84a2254e73a4df25fd
     return 0;
 }
 
 int memory_write_half(memory mem, uint32_t address, uint16_t value) {
+<<<<<<< HEAD
    
     return -1;
+=======
+
+    if (mem->be == 1){
+      uint8_t a = value;
+      uint8_t b = value >> 8 ;
+      memory_write_byte(mem , address , b);
+      memory_write_byte( mem ,  address + 1, a);
+
+      
+      return 0;
+    }
+    else {
+      uint8_t a = value;
+      uint8_t b = value >> 8 ;
+      memory_write_byte( mem , address , a);
+      memory_write_byte( mem ,  address+1 , b);
+
+
+      return 0;
+
+    }
+
+>>>>>>> 5ce39e2a1df85e6042dd7d84a2254e73a4df25fd
 }
 
 int memory_write_word(memory mem, uint32_t address, uint32_t value) {
-    return -1;
+
+    if (mem->be == 1){
+      uint32_t a = value;
+      uint32_t b = value >> 8 ;
+      uint32_t c = value >> 16 ;
+      uint32_t d = value >> 24 ;
+      mem->add[address] = d  ;
+      mem->add[address + 1] = c ;
+      mem->add[address + 2] = b ;
+      mem->add[address + 3] = a ;
+      return 0;
+    }
+    else {
+      uint32_t a = value;
+      uint32_t b = value >> 8 ;
+      uint32_t c = value >> 16 ;
+      uint32_t d = value >> 24 ;
+      mem->add[address] = a  ;
+      mem->add[address + 1] = b ;
+      mem->add[address + 2] = c ;
+      mem->add[address + 3] = d ;
+      return 0;
+    }
+
 }
+
