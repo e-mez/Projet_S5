@@ -28,12 +28,12 @@ Contact: Guillaume.Huard@imag.fr
 #include "arm_instruction.h"
 
 
-int arm_branch(arm_core p, uint32_t ins) { // nothing new
+int arm_branch(arm_core p, uint32_t ins) { 
 
     uint8_t cond = (uint8_t) get_bits(ins, 31,28);
 
     if (ConditionPassed(p,cond)){
-    //if(get_bits(ins, 31,28)!=0b1111){
+  
        if(get_bit(ins,24)==0){
        /*c'est un branchement B*/
          uint32_t x = get_bits(ins,23,0);
@@ -48,7 +48,7 @@ int arm_branch(arm_core p, uint32_t ins) { // nothing new
         /*c'est un BL
          l'instruct courante est mise dans LR, puis branchmt!*/
          uint32_t adr = arm_read_register(p,15);          
-         arm_write_register(p, 14, adr);
+         arm_write_register(p, 14, adr);  
          uint32_t x = get_bits(ins,23,0);
          x = (~x +1) << 2;
          arm_write_register(p,15, arm_read_register(p,15)+x);
