@@ -25,70 +25,19 @@ Contact: Guillaume.Huard@imag.fr
 #include "util.h"
 
 struct memory_data {
-<<<<<<< HEAD
-	int is_big_endian;
+  int is_big_endian;
 	uint8_t *address;
 	size_t size;
 };
 
 memory memory_create(size_t size, int is_big_endian) {
-    memory mem = malloc(sizeof(struct memory_data));
-    if (mem != NULL) {
-    	mem->address = malloc(sizeof(uint8_t) * size);
-		mem->size = size;
-    	mem->is_big_endian = is_big_endian;
-    	return mem;
-    }    
-    return NULL;
-}
-
-size_t memory_get_size(memory mem) {
-    return mem->size;
-}
-
-void memory_destroy(memory mem) {
-	free(mem->address);
-	free(mem);
-}
-
-int memory_read_byte(memory mem, uint32_t address, uint8_t *value) {
-    *value = mem->address[address];
-    return 0;
-}
-
-int memory_read_half(memory mem, uint32_t address, uint16_t *value) {
-    if (mem->is_big_endian)
-    	*value = mem->address[address] << 8 | mem->address[address+1];
-    else 
-    	*value = mem->address[address+1] << 8 | mem->address[address];
-    return 0;
-}
-
-int memory_read_word(memory mem, uint32_t address, uint32_t *value) {
-    if (mem->is_big_endian)
-    	*value = mem->address[address] << 24 | mem->address[address+1] << 16 | mem->address[address+2] << 8 | mem->address[address+3];
-    else
-    	*value = mem->address[address+3] << 24 | mem->address[address+2] << 16 | mem->address[address+1] << 8 | mem->address[address];
-    return 0;
-}
-
-int memory_write_byte(memory mem, uint32_t address, uint8_t value) {
-    mem->address[address] = value;
-=======
-  uint8_t *add;
-  int be;
-  size_t taille;
-
-};
-
-memory memory_create(size_t size, int is_big_endian) {
-  memory mem = malloc(sizeof(memory));
-  mem->add=malloc(size);
-  if (mem->add == NULL)
-      mem->taille = 0;
+  memory mem = malloc(sizeof(struct memory_data));
+  mem->address=malloc(size);
+  if (mem->address == NULL)
+      mem->size = 0;
   else
-      mem->taille = size;
-  mem->be = is_big_endian;
+      mem->size = size;
+  mem->is_big_endian = is_big_endian;
 
   return mem;
 
@@ -96,18 +45,18 @@ memory memory_create(size_t size, int is_big_endian) {
 
 size_t memory_get_size(memory mem) {
     size_t  value;
-    value= mem->taille;
+    value= mem->size;
     return value;
 }
 
 void memory_destroy(memory mem) {
-  free(mem->add);
+  free(mem->address);
   free(mem);
 }
 
 int memory_read_byte(memory mem, uint32_t address, uint8_t *value) {
-  if (address <= mem->taille) {
-    *value = mem->add[address];
+  if (address <= mem->size) {
+    *value = mem->address[address];
     return *value;
   }
   else
@@ -115,17 +64,17 @@ int memory_read_byte(memory mem, uint32_t address, uint8_t *value) {
 }
 
 int memory_read_half(memory mem, uint32_t address, uint16_t *value) {
-  if (address <= mem->taille) {
-    if (mem->be == 0){
-      uint16_t a = mem->add[address] ;
-      uint16_t b = mem->add[address+1] <<8;
+  if (address <= mem->size) {
+    if (mem->is_big_endian == 0){
+      uint16_t a = mem->address[address] ;
+      uint16_t b = mem->address[address+1] <<8;
       *value= a | b ;
       return *value;
     }
     else
     {
-      uint16_t a = mem->add[address]<<8 ;
-      uint16_t b = mem->add[address+1] ;
+      uint16_t a = mem->address[address]<<8 ;
+      uint16_t b = mem->address[address+1] ;
       *value= a | b ;
       return *value;
     }
@@ -137,12 +86,12 @@ int memory_read_half(memory mem, uint32_t address, uint16_t *value) {
 }
 
 int memory_read_word(memory mem, uint32_t address, uint32_t *value) {
-  if (address <= mem->taille) {
-    if (mem->be == 0){
-      uint32_t a = mem->add[address] ;
-      uint32_t b = mem->add[address+1] <<8;
-      uint32_t c = mem->add[address+2] <<16;
-      uint32_t d = mem->add[address+3] <<24;
+  if (address <= mem->size) {
+    if (mem->is_big_endian == 0){
+      uint32_t a = mem->address[address] ;
+      uint32_t b = mem->address[address+1] <<8;
+      uint32_t c = mem->address[address+2] <<16;
+      uint32_t d = mem->address[address+3] <<24;
 
 
       *value= a | b | c | d;
@@ -150,10 +99,10 @@ int memory_read_word(memory mem, uint32_t address, uint32_t *value) {
     }
     else
     {
-      uint32_t a = mem->add[address]<<24 ;
-      uint32_t b = mem->add[address+1] << 16;
-      uint32_t c = mem->add[address+2] <<8;
-      uint32_t d = mem->add[address+3] ;
+      uint32_t a = mem->address[address]<<24 ;
+      uint32_t b = mem->address[address+1] << 16;
+      uint32_t c = mem->address[address+2] <<8;
+      uint32_t d = mem->address[address+3] ;
 
 
       *value= a | b | c | d  ;
@@ -167,18 +116,19 @@ int memory_read_word(memory mem, uint32_t address, uint32_t *value) {
 }
 
 int memory_write_byte(memory mem, uint32_t address, uint8_t value) {
-    mem->add[address] = value;
->>>>>>> 5ce39e2a1df85e6042dd7d84a2254e73a4df25fd
+    mem->address[address] = value;
+// >>>>>>> 5ce39e2a1df85e6042dd7d84a2254e73a4df25fd
     return 0;
 }
 
 int memory_write_half(memory mem, uint32_t address, uint16_t value) {
-<<<<<<< HEAD
-   
-    return -1;
-=======
 
-    if (mem->be == 1){
+//  <<<<<<< HEAD
+   
+    //return -1;
+// =======
+
+    if (mem->is_big_endian == 1){
       uint8_t a = value;
       uint8_t b = value >> 8 ;
       memory_write_byte(mem , address , b);
@@ -198,20 +148,20 @@ int memory_write_half(memory mem, uint32_t address, uint16_t value) {
 
     }
 
->>>>>>> 5ce39e2a1df85e6042dd7d84a2254e73a4df25fd
+// >>>>>>> 5ce39e2a1df85e6042dd7d84a2254e73a4df25fd
 }
 
 int memory_write_word(memory mem, uint32_t address, uint32_t value) {
 
-    if (mem->be == 1){
+    if (mem->is_big_endian == 1){
       uint32_t a = value;
       uint32_t b = value >> 8 ;
       uint32_t c = value >> 16 ;
       uint32_t d = value >> 24 ;
-      mem->add[address] = d  ;
-      mem->add[address + 1] = c ;
-      mem->add[address + 2] = b ;
-      mem->add[address + 3] = a ;
+      mem->address[address] = d  ;
+      mem->address[address + 1] = c ;
+      mem->address[address + 2] = b ;
+      mem->address[address + 3] = a ;
       return 0;
     }
     else {
@@ -219,10 +169,10 @@ int memory_write_word(memory mem, uint32_t address, uint32_t value) {
       uint32_t b = value >> 8 ;
       uint32_t c = value >> 16 ;
       uint32_t d = value >> 24 ;
-      mem->add[address] = a  ;
-      mem->add[address + 1] = b ;
-      mem->add[address + 2] = c ;
-      mem->add[address + 3] = d ;
+      mem->address[address] = a  ;
+      mem->address[address + 1] = b ;
+      mem->address[address + 2] = c ;
+      mem->address[address + 3] = d ;
       return 0;
     }
 

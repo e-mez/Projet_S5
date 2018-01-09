@@ -26,7 +26,100 @@ Contact: Guillaume.Huard@imag.fr
 #include "util.h"
 #include "debug.h"
 
-int arm_load_store(arm_core p, uint32_t ins) {
+uint32_t getValueFromIns(arm_core p, uint32_t ins, int h, int l);
+
+int arm_load_store(arm_core p, uint32_t ins) { // return 1 if OK, UNDEFINED_INSTRUCTION if not
+	uint32_t bit25, bit21, bit23, rn, rd, rm, offset12, address, bits4_11, bit24, shift, shift_imm, index;
+	rn = getValueFromIns(p, ins, 19, 16);
+	rd = getValueFromIns(p, ins, 15, 12);
+	rm = getValueFromIns(p, ins, 3, 0);
+	bit25 = get_bit(ins, 25);
+	bit21 = get_bit(ins, 21);
+	bit23 = get_bit(ins, 23); // getting the U bit
+	bit24 = get_bit(ins, 24);
+	if (bit25) { // Register offset/index or Scaled Register offset/index
+		bits4_11 = get_bits(ins, 11, 4);
+		if (bits4_11) { // Scaled register offset/index
+			if (bit24) { // Scaled register pre-indexed
+
+			}
+			else { // Scaled register post-indexed
+				address = rn;
+				shift_imm = get_bits(ins, 11, 7);
+				shift = get_bits(ins, 6, 5);
+				switch (shift) {
+					case 0b00: // Logical Shift Left
+						index = rm << shift_imm;
+						break;
+
+					case 0b01: // Logical Shift Right
+						if (shift_imm == 0)  /* LSR #32 */
+							index = 0;
+						else
+							index = rm >> shift_imm;
+						break;
+
+					case 0b10: // Arithmetic Shift Right
+						if (shift_imm == 0) { /* ASR #32 */
+							if (get_bit(rm, 31)) 
+								index = 0xFFFFFFFF;
+							else
+								index = 0;
+						}
+						else
+							index = asr(rm, shift_imm);
+						break;
+
+					case 0b11: // ROR or RRX
+						if (shift_imm == 0) /* RRX */
+							index = (get_bit(ins, C) << 31) || (rm >> 1);
+						else /* ROR */
+							index = ror(rm, shift_imm);
+						break;
+				}
+				if (bit23) 
+					rn = rn + index;
+				else
+					rn = rn - index;
+				return 1;
+			}
+		}
+		else { // Register offset/index
+			if (bit24) { // Register pre-indexed
+				if (bit23)
+					address = rn + rm;			
+				else 
+					address = rn - rm;
+				rn = address;
+			}
+			else { // Register post-indexed
+				address = rn;
+				if (bit23)
+					rn = rn + rm;			
+				else 
+					rn = rn - rm;
+			}
+		}
+		return 1;
+	}
+	else { // immediate offset/index
+		offset12 = get_bits(ins, 11, 0);
+		if (bit21) { // Immediate pre-indexed
+			if (bit23)
+				address = rn + offset12;			
+			else 
+				address = rn - offset12;
+			rn = address;
+		}
+		else { // Immediate offset post-indexed
+			address = rn;
+			if (bit23)
+				rn = rn + offset12;			
+			else 
+				rn = rn - offset12;
+		}
+		return 1;
+	}
     return UNDEFINED_INSTRUCTION;
 }
 
@@ -37,4 +130,11 @@ int arm_load_store_multiple(arm_core p, uint32_t ins) {
 int arm_coprocessor_load_store(arm_core p, uint32_t ins) {
     /* Not implemented */
     return UNDEFINED_INSTRUCTION;
+}
+
+uint32_t getValueFromIns(arm_core p, uint32_t ins, int h, int l) {
+	uint32_t value;
+	value = get_bits(ins, h, l);
+	value = arm_read_register(p, value);
+	return value;
 }
