@@ -28,34 +28,37 @@ Contact: Guillaume.Huard@imag.fr
 #include "arm_instruction.h"
 
 
+uint32_t Extend_30(uint32_t x, uint32_t ins){
+      x = get_bits(ins, 23, 0);
+      if( get_bit(ins, 23) == 0)
+         return set_bits(x, 30, 24,0x0);
+      else
+         return set_bits(x, 30, 24,0xF);
+}
+
+
 int arm_branch(arm_core p, uint32_t ins) { 
 
     uint8_t cond = (uint8_t) get_bits(ins, 31,28);
+    uint32_t x;
 
     if (ConditionPassed(p,cond)){
   
        if(get_bit(ins,24)==0){
        /*c'est un branchement B*/
-         uint32_t x = get_bits(ins,23,0);
-/*x est le compl à 2 ds 24 bits d'offset, décalé de 2 bits à g*/ 
-         x =  (~x +1) << 2;
+/*x est l'extension ds 24 bits d'offset, décalé de 2 bits à g*/ 
+          x = Extend_30(x, ins) << 2;
 /*pc<-pc+x*/
          arm_write_register(p,15, arm_read_register(p,15)+x);
-        
-        return arm_execute_instruction(p);        
-       }
-      else{
+                    
+       }else{
         /*c'est un BL
          l'instruct courante est mise dans LR, puis branchmt!*/
          uint32_t adr = arm_read_register(p,15);          
          arm_write_register(p, 14, adr);  
-         uint32_t x = get_bits(ins,23,0);
-         x = (~x +1) << 2;
+         x = Extend_30(x, ins) << 2;
          arm_write_register(p,15, arm_read_register(p,15)+x);
-         return arm_execute_instruction(p);  
-  
-         //puis remettre LR dans PC
-         arm_write_register(p,15, arm_read_register(p,14)); 
+         return 0;
       } 
     }
         
