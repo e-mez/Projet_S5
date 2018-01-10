@@ -58,7 +58,7 @@
 								operand2 = arm_read_register(p, bits0_3);
 							}
 							else { // shifted register operand value
-								
+								operand2 = arm_data_processing_shift(p, res);
 							}
 						
 						}
@@ -96,7 +96,7 @@
 								break;
 
 							case 0b0101: // ADC ; Add with Carry ; Rd := Rn + shifter_operand + Carry Flag
-								operand3 = get_bit(res, C);
+								operand3 = get_bit(get_bit(res, 16), C);
 								operands_result = operand1 + operand2 + operand3;
 								arm_write_register(p, rd, operands_result);
 								break;

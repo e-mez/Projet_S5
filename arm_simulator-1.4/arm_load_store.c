@@ -27,6 +27,7 @@ Contact: Guillaume.Huard@imag.fr
 #include "debug.h"
 
 uint32_t getValueFromIns(arm_core p, uint32_t ins, int h, int l);
+void load_store_shifts_rotate(uint32_t *shift, uint32_t *shift_imm, uint32_t *index, uint32_t *rm, uint32_t *ins);
 
 int arm_load_store(arm_core p, uint32_t ins) { // return 1 if OK, UNDEFINED_INSTRUCTION if not
 	uint32_t bit25, bit21, bit23, rn, rd, rm, offset12, address, bits4_11, bit24, shift, shift_imm, index;
@@ -37,51 +38,28 @@ int arm_load_store(arm_core p, uint32_t ins) { // return 1 if OK, UNDEFINED_INST
 	bit21 = get_bit(ins, 21);
 	bit23 = get_bit(ins, 23); // getting the U bit
 	bit24 = get_bit(ins, 24);
+	shift_imm = get_bits(ins, 11, 7);
+	shift = get_bits(ins, 6, 5);
 	if (bit25) { // Register offset/index or Scaled Register offset/index
 		bits4_11 = get_bits(ins, 11, 4);
 		if (bits4_11) { // Scaled register offset/index
 			if (bit24) { // Scaled register pre-indexed
-
-			}
-			else { // Scaled register post-indexed
-				address = rn;
-				shift_imm = get_bits(ins, 11, 7);
-				shift = get_bits(ins, 6, 5);
-				switch (shift) {
-					case 0b00: // Logical Shift Left
-						index = rm << shift_imm;
-						break;
-
-					case 0b01: // Logical Shift Right
-						if (shift_imm == 0)  /* LSR #32 */
-							index = 0;
-						else
-							index = rm >> shift_imm;
-						break;
-
-					case 0b10: // Arithmetic Shift Right
-						if (shift_imm == 0) { /* ASR #32 */
-							if (get_bit(rm, 31)) 
-								index = 0xFFFFFFFF;
-							else
-								index = 0;
-						}
-						else
-							index = asr(rm, shift_imm);
-						break;
-
-					case 0b11: // ROR or RRX
-						if (shift_imm == 0) /* RRX */
-							index = (get_bit(ins, C) << 31) || (rm >> 1);
-						else /* ROR */
-							index = ror(rm, shift_imm);
-						break;
-				}
+				load_store_shifts_rotate(&shift, &shift_imm, &index, &rm, &ins);
 				if (bit23) 
 					rn = rn + index;
 				else
 					rn = rn - index;
-				return 1;
+				address = rn;
+				//return 1;
+			}
+			else { // Scaled register post-indexed
+				address = rn;
+				load_store_shifts_rotate(&shift, &shift_imm, &index, &rm, &ins);				
+				if (bit23) 
+					rn = rn + index;
+				else
+					rn = rn - index;
+				//return 1;
 			}
 		}
 		else { // Register offset/index
@@ -100,7 +78,7 @@ int arm_load_store(arm_core p, uint32_t ins) { // return 1 if OK, UNDEFINED_INST
 					rn = rn - rm;
 			}
 		}
-		return 1;
+		//return 1;
 	}
 	else { // immediate offset/index
 		offset12 = get_bits(ins, 11, 0);
@@ -118,7 +96,7 @@ int arm_load_store(arm_core p, uint32_t ins) { // return 1 if OK, UNDEFINED_INST
 			else 
 				rn = rn - offset12;
 		}
-		return 1;
+		//return 1;
 	}
     return UNDEFINED_INSTRUCTION;
 }
@@ -135,6 +113,39 @@ int arm_coprocessor_load_store(arm_core p, uint32_t ins) {
 uint32_t getValueFromIns(arm_core p, uint32_t ins, int h, int l) {
 	uint32_t value;
 	value = get_bits(ins, h, l);
-	value = arm_read_register(p, value);
+	//value = arm_read_register(p, value);
 	return value;
+}
+
+void load_store_shifts_rotate(uint32_t *shift, uint32_t *shift_imm, uint32_t *index, uint32_t *rm, uint32_t *ins) {
+	switch (*shift) {
+		case 0b00: // Logical Shift Left
+			*index = (*rm) << (*shift_imm);
+		break;
+
+		case 0b01: // Logical Shift Right
+			if (*shift_imm == 0)  /* LSR #32 */
+				*index = 0;
+			else
+				*index = (*rm) >> (*shift_imm);
+		break;
+
+		case 0b10: // Arithmetic Shift Right
+			if (*shift_imm == 0) { /* ASR #32 */
+				if (get_bit(*rm, 31)) 
+					*index = 0xFFFFFFFF;
+				else
+					*index = 0;
+			}
+			else
+				*index = asr(*rm, *shift_imm);
+		break;
+
+		case 0b11: // ROR or RRX
+			if (*shift_imm == 0) /* RRX */
+				*index = (get_bit(*ins, C) << 31) || (*rm >> 1);
+			else /* ROR */
+				*index = ror(*rm, *shift_imm);
+		break;
+	}
 }

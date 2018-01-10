@@ -28,17 +28,138 @@ Contact: Guillaume.Huard@imag.fr
 #include "debug.h"
 #include "arm_core.h"
 
+uint32_t logicalShift(uint32_t value, uint32_t shift, char direction);
+
 /* Decoding functions for different classes of instructions */
 int arm_data_processing_shift(arm_core p, uint32_t ins) {
-	
-		 
-	return UNDEFINED_INSTRUCTION;
+	uint32_t bits4_6, bits7_11, operand2, rm, rs, rs_bits_0_7, rs_bits_0_4, shift_imm, val1, val2, cFlag;
+	bits4_6 = get_bits(ins, 6, 4);
+	rm = get_bits(ins, 3, 0);
+	rm = arm_read_register(p, rm);
+	rs = get_bits(ins, 11, 8);
+	bits7_11 = get_bits(ins, 11, 7);
+	rs_bits_0_7 = get_bits(rs, 7, 0);
+	rs_bits_0_4 = get_bits(rs, 4, 0);
+	switch (bits4_6) {
+		case 0b000: // LSL Immediate
+			shift_imm = get_bits(ins, 11, 7);
+			if (shift_imm == 0) { /* Register Operand */
+				operand2 = rm;
+				// shifter_carry_out = C Flag
+			}
+			else { /* shift_imm > 0 */
+				operand2 = logicalShift(rm, shift_imm, 'l');
+				// shifter_carry_out = Rm[32 - shift_imm]
+			}
+		break;
+
+		case 0b001: // LSL Register
+			// here, Rs is in bits 11 - 8 and bit7 == 0
+			if (rs_bits_0_7 == 0) {
+				operand2 = rm;
+				// shifter_carry_out = C Flag
+			}
+			else if (rs_bits_0_7 < 32)
+				operand2 = logicalShift(rm, rs_bits_0_7, 'l'); // shifter_carry_out = Rm[32 - Rs[7:0]]
+			else if (rs_bits_0_7 == 32)
+				operand2 = 0; // shifter_carry_out = Rm[0]
+			else
+				operand2 = 0; // shifter_carry_out = 0
+		break;
+
+		case 0b010: // LSR Immediate
+			if (!shift_imm)
+				operand2 = 0; // shifter_carry_out = Rm[31]
+			else 
+				operand2 = logicalShift(rm, shift_imm, 'r'); // shifter_carry_out = Rm[shift_imm - 1]
+		break;
+
+		case 0b011: // LSR Register
+			// here, Rs is in bits 11 - 8 and bit7 == 0
+			if (rs_bits_0_7 == 0)
+				operand2 = rm; // shiftercarryout is c flag
+			else if (rs_bits_0_7 < 32)
+				operand2 = logicalShift(rm, rs_bits_0_7, 'r');
+			else if (rs_bits_0_7 == 32)
+				operand2 = 0; // shiftercarryout is Rm[31]
+			else
+				operand2 = 0; // shiftercarryout = 0
+		break;
+
+		case 0b100: // ASR Immediate
+			if (!shift_imm) {
+				if (get_bit(rm, 31) == 0)
+					operand2 = 0; // carryout = rm[31]
+				else 
+					operand2 = 0xFFFFFFFF; // carryout = rm[31] 
+			}
+			else 
+				operand2 = asr(rm, shift_imm);
+		break;
+
+		case 0b101: // ASR Register
+			// here, Rs is in bits 11 - 8 and bit7 == 0
+			if (rs_bits_0_7 == 0) 
+				operand2 = rm; // carryout = c flag
+			else if (rs_bits_0_7 < 32)
+				operand2 = asr(rm, rs_bits_0_7); // shifter_carry_out = Rm[Rs[7:0] - 1]
+			else {
+				if (get_bit(rm, 31) == 0)
+					operand2 = 0; // shifter_carry_out = Rm[31]
+				else 
+					operand2 = 0xFFFFFFFF; // shifter_carry_out = Rm[31]
+			}
+		break;
+
+		case 0b110: // ROR Immediate
+			// here, check bits 7 - 11 to differenciate btw ROR Extend and ROR Immediate
+			// for ROR_Ex, bits 7 - 11 == 0b00000
+			cFlag = get_bit(get_bit(ins, 16), C);
+			val1 = logicalShift(cFlag, 31, 'l');
+			val2 = logicalShift(rm, 1, 'r');
+
+			if (!bits7_11) { // ROR Extend
+				operand2 = val1 | val2; // carryout = rm[0]
+			}
+			else { // ROR Immediate
+				if (!shift_imm)
+					// see rotate right with extend
+					operand2 = val1 | val2; // carryout = rm[0]
+				else
+					operand2 = ror(rm, shift_imm); // shifter_carry_out = Rm[shift_imm - 1]			
+			}
+		break;
+
+		case 0b111: // ROR Register
+			// here, Rs is in bits 11 - 8 and bit7 == 0
+			if (rs_bits_0_7 == 0)
+				operand2 = rm; // carryout is c flag
+			else if (rs_bits_0_4 == 0)
+				operand2 = rm; // carryout is rm[31]
+			else
+				operand2 = ror(rm, rs_bits_0_4); // shifter_carry_out = Rm[Rs[4:0] - 1]
+		break;
+
+		default:
+			printf("Invalid data processing shift operation is being executed.!\n");
+	}
+	return operand2;
+	// return UNDEFINED_INSTRUCTION;
 }
 
 int arm_data_processing_immediate_msr(arm_core p, uint32_t ins) {
 	return UNDEFINED_INSTRUCTION;
 }
 
+uint32_t logicalShift(uint32_t value, uint32_t shift, char direction) {
+	if (direction == 'r')
+		return value >> shift;
+	else if (direction == 'l')
+		return value << shift;
+	else 
+		printf("Invalid shift direction argument! Possible unreliable result!\n");
+	return 0;
+}
 
 
 /*
