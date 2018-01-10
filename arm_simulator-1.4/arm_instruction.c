@@ -40,7 +40,7 @@
 		operand1 = get_bits(res, 19, 16);
 		operand1 = arm_read_register(p, operand1);
 		rd = get_bits(res, 15, 12);
-		rd = arm_read_register(p, rd);
+		//rd = arm_read_register(p, rd);
 		uint8_t cond_bits = get_bits(res, 31, 28);
 		switch(bits26_27) {
 			case 0b00: /* data processing and miscellaneous instructions */
@@ -58,11 +58,12 @@
 								operand2 = arm_read_register(p, bits0_3);
 							}
 							else { // shifted register operand value
+								
 							}
 						
 						}
 						else { // rn is immediate operand
-							int bit8_11, bit0_7;
+							uint32_t bit8_11, bit0_7;
 							bit8_11 = get_bits(res, 11, 8);
 							bit0_7 = get_bits(res, 7, 0);
 							operand2 = ror(bit0_7, bit8_11 * 2);
@@ -152,7 +153,7 @@
 					}
 					
 				}
-				break;
+			break;
 
 			case 0b01: //  load/store instructions
 				if (ConditionPassed(p,cond_bits)) {

@@ -92,8 +92,6 @@ int memory_read_word(memory mem, uint32_t address, uint32_t *value) {
       uint32_t b = mem->address[address+1] <<8;
       uint32_t c = mem->address[address+2] <<16;
       uint32_t d = mem->address[address+3] <<24;
-
-
       *value= a | b | c | d;
       return *value;
     }
@@ -103,8 +101,6 @@ int memory_read_word(memory mem, uint32_t address, uint32_t *value) {
       uint32_t b = mem->address[address+1] << 16;
       uint32_t c = mem->address[address+2] <<8;
       uint32_t d = mem->address[address+3] ;
-
-
       *value= a | b | c | d  ;
       return *value;
     }
@@ -117,24 +113,15 @@ int memory_read_word(memory mem, uint32_t address, uint32_t *value) {
 
 int memory_write_byte(memory mem, uint32_t address, uint8_t value) {
     mem->address[address] = value;
-// >>>>>>> 5ce39e2a1df85e6042dd7d84a2254e73a4df25fd
     return 0;
 }
 
 int memory_write_half(memory mem, uint32_t address, uint16_t value) {
-
-//  <<<<<<< HEAD
-   
-    //return -1;
-// =======
-
     if (mem->is_big_endian == 1){
       uint8_t a = value;
       uint8_t b = value >> 8 ;
       memory_write_byte(mem , address , b);
-      memory_write_byte( mem ,  address + 1, a);
-
-      
+      memory_write_byte( mem ,  address + 1, a);      
       return 0;
     }
     else {
@@ -142,13 +129,8 @@ int memory_write_half(memory mem, uint32_t address, uint16_t value) {
       uint8_t b = value >> 8 ;
       memory_write_byte( mem , address , a);
       memory_write_byte( mem ,  address+1 , b);
-
-
       return 0;
-
     }
-
-// >>>>>>> 5ce39e2a1df85e6042dd7d84a2254e73a4df25fd
 }
 
 int memory_write_word(memory mem, uint32_t address, uint32_t value) {
@@ -175,6 +157,5 @@ int memory_write_word(memory mem, uint32_t address, uint32_t value) {
       mem->address[address + 3] = d ;
       return 0;
     }
-
 }
 

@@ -31,7 +31,7 @@ struct registers_data {
 registers registers_create() {
     //registers r = NULL;
     registers r = malloc(sizeof(struct registers_data));
-    r->r_data = malloc(sizeof(uint32_t) * 18); // 17 cases pour les 17 registres de base
+    r->r_data = malloc(sizeof(uint32_t) * 18); 
     return r;
 }
 
@@ -45,7 +45,6 @@ uint8_t get_mode(registers r) {
 
 	uint8_t mode = (uint8_t) (r->r_data[16] & 0b11111);
     return mode;
-    // TO DO: vérifier que le boutisme ne posera pas problème
 } 
 
 int current_mode_has_spsr(registers r) {
