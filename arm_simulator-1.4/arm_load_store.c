@@ -38,6 +38,7 @@ int arm_load_store(arm_core p, uint32_t ins) { // return 1 if OK, UNDEFINED_INST
 	bit21 = get_bit(ins, 21);
 	bit23 = get_bit(ins, 23); // getting the U bit
 	bit24 = get_bit(ins, 24);
+	//bits26_27 = get_bits(27, 26);
 	shift_imm = get_bits(ins, 11, 7);
 	shift = get_bits(ins, 6, 5);
 	if (bit25) { // Register offset/index or Scaled Register offset/index
@@ -97,8 +98,11 @@ int arm_load_store(arm_core p, uint32_t ins) { // return 1 if OK, UNDEFINED_INST
 				rn = rn - offset12;
 		}
 		//return 1;
+		// u need to return the rn !!!!!
 	}
-    return UNDEFINED_INSTRUCTION;
+	//printf("i am here\n");
+	return rn;
+    //return UNDEFINED_INSTRUCTION;
 }
 
 int arm_load_store_multiple(arm_core p, uint32_t ins) {
