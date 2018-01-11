@@ -29,6 +29,9 @@
 	#include "util.h"
 
 	int ConditionPassed(arm_core p, uint8_t cond);
+	void loadStoreByteOrWord(arm_core *p, uint32_t load_store_address, uint32_t rd_value, uint32_t bit20, uint32_t bit22, uint32_t rd);
+	uint32_t shiftedRegisterOperand(arm_core p, uint32_t ins, uint32_t *shifter_carry_out);
+	uint32_t logicalShift(uint32_t value, uint32_t shift, char direction);
 
 	static int arm_execute_instruction(arm_core p) {
 		uint32_t opcode, operand1, operand2, operand3, operands_result, rd, instr, bit25, bit23_24, bits26_27, bits4_11, res, arm_decode;
@@ -59,7 +62,7 @@
 								shifter_carry_out = get_bit(arm_read_cpsr(p), C);
 							}
 							else { // shifted register operand value
-								//operand2 = arm_data_processing_shift(p, res, &shifter_carry_out);
+								operand2 = shiftedRegisterOperand(p, res, &shifter_carry_out);
 							}
 						
 						}
@@ -172,19 +175,7 @@
 					bit20 = get_bit(res, 20);
 					bit22 = get_bit(res, 22);
 					rd_value = arm_read_register(p, rd);
-					if (!bit20) { // Store instr
-						if (bit22 == 0) { // STR
-							arm_write_word(p, load_store_address, rd_value);
-							//printf("i am here -> Condition code for STR\nrd_value = %d, load_store_address = %d\n", rd_value, load_store_address);
-							printf("%d\n", arm_read_word( p, load_store_address, &x) );
-						}
-						else { // STRB
-
-						}
-					}
-					else { // Load instr
-
-					}
+					loadStoreByteOrWord(&p, load_store_address, rd_value, bit20, bit22, rd);
 				}				
 			break;		
 
@@ -219,6 +210,201 @@
 	        arm_exception(p, result);
 	    return result;
 	}
+
+	void loadStoreByteOrWord(arm_core *p, uint32_t load_store_address, uint32_t rd_value, uint32_t bit20, uint32_t bit22, uint32_t rd) {
+		if (!bit20 && !bit22) { // STR
+			arm_write_word(*p, load_store_address, rd_value);
+			uint32_t x; printf("Just wrote word : %d\n", arm_read_word( *p, load_store_address, &x) );
+		}
+		else if (!bit20 && bit22) { // STRB
+			arm_write_byte(*p, load_store_address, get_bits(rd_value, 7, 0));
+			uint8_t x; printf("Just wrote byte : %d\n", arm_read_byte( *p, load_store_address, &x));
+		}
+		else if (bit20 && !bit22) { // LDR
+			uint32_t data, val1, val2; // data = Memory[address,4] Rotate_Right (8 * address[1:0])
+			val1 = arm_read_word(*p, load_store_address, &val1);
+			val2 = get_bits(load_store_address, 1, 0);
+			data = ror(val1, 8 * val2);
+			if (rd == 15)  // PC = data AND 0xFFFFFFFE
+				arm_write_register(*p, rd, data & 0xFFFFFFFE); // writing to PC
+			else 
+				arm_write_register(*p, rd, data);
+		}
+		else if (bit20 && bit22) { // LDRB Rd = Memory[address,1]
+			uint8_t x, y; printf("Executing LDRB\n");
+			y = arm_read_byte(*p, load_store_address, &x);
+			printf("register number (r) = %d, value to load to r = %d\n", rd, y);
+			arm_write_register(*p, rd, y);
+		}
+		else 
+			printf("Error during loading or storing a byte or a word to memory\n");
+
+	}
+
+	uint32_t shiftedRegisterOperand(arm_core p, uint32_t ins, uint32_t *shifter_carry_out) {
+		uint32_t bits4_6, bits7_11, operand2, rm, rs, rs_bits_0_7, rs_bits_0_4, shift_imm, val1, val2, cFlag;
+		bits4_6 = get_bits(ins, 6, 4);
+		rm = get_bits(ins, 3, 0);
+		rm = arm_read_register(p, rm);
+		rs = get_bits(ins, 11, 8);
+		bits7_11 = get_bits(ins, 11, 7);
+		rs_bits_0_7 = get_bits(rs, 7, 0);
+		rs_bits_0_4 = get_bits(rs, 4, 0);
+		switch (bits4_6) {
+			case 0b000: // LSL Immediate
+				shift_imm = get_bits(ins, 11, 7);
+				if (shift_imm == 0) { /* Register Operand */
+					operand2 = rm;
+					*shifter_carry_out = get_bit(arm_read_cpsr(p), C);
+				}
+				else { /* shift_imm > 0 */
+					operand2 = logicalShift(rm, shift_imm, 'l');
+					*shifter_carry_out = get_bit(rm, 32 - shift_imm);
+				}
+			break;
+
+			case 0b001: // LSL Register
+				// here, Rs is in bits 11 - 8 and bit7 == 0
+				if (rs_bits_0_7 == 0) {
+					operand2 = rm;
+					*shifter_carry_out = get_bit(arm_read_cpsr(p), C);
+				}
+				else if (rs_bits_0_7 < 32) {
+					operand2 = logicalShift(rm, rs_bits_0_7, 'l'); 
+					*shifter_carry_out = get_bit(rm, 32 - rs_bits_0_7);
+				}
+				else if (rs_bits_0_7 == 32) {
+					operand2 = 0; 
+					*shifter_carry_out = get_bit(rm, 0);
+				}
+				else {
+					operand2 = 0; 
+					*shifter_carry_out = 0;
+				}
+			break;
+
+			case 0b010: // LSR Immediate
+				if (!shift_imm) {
+					operand2 = 0; 
+					*shifter_carry_out = get_bit(rm, 31);
+				}
+				else { 
+					operand2 = logicalShift(rm, shift_imm, 'r'); 
+					*shifter_carry_out  = get_bit(rm, shift_imm - 1); 
+				}
+			break;
+
+			case 0b011: // LSR Register
+				// here, Rs is in bits 11 - 8 and bit7 == 0
+				if (rs_bits_0_7 == 0) {
+					operand2 = rm; 
+					*shifter_carry_out = get_bit(arm_read_cpsr(p), C);
+				}
+				else if (rs_bits_0_7 < 32) {
+					operand2 = logicalShift(rm, rs_bits_0_7, 'r');
+					*shifter_carry_out = get_bit(rm, rs_bits_0_7 - 1);
+				}
+				else if (rs_bits_0_7 == 32) {
+					operand2 = 0; 
+					*shifter_carry_out = get_bit(rm, 31);
+				}
+				else {
+					operand2 = 0; 
+					*shifter_carry_out = 0;
+				}
+			break;
+
+			case 0b100: // ASR Immediate
+				if (!shift_imm) {
+					if (get_bit(rm, 31) == 0) {
+						operand2 = 0; 
+					}
+					else  {
+						operand2 = 0xFFFFFFFF; 
+					}
+					*shifter_carry_out = get_bit(rm, 31);
+				}
+				else {
+					operand2 = asr(rm, shift_imm);
+					*shifter_carry_out = get_bit(rm, shift_imm - 1); 
+				}
+			break;
+
+			case 0b101: // ASR Register
+				// here, Rs is in bits 11 - 8 and bit7 == 0
+				if (rs_bits_0_7 == 0) {
+					operand2 = rm; 
+					*shifter_carry_out = get_bit(arm_read_cpsr(p), C);
+				}
+				else if (rs_bits_0_7 < 32) {
+					operand2 = asr(rm, rs_bits_0_7); // shifter_carry_out = Rm[Rs[7:0] - 1]
+					*shifter_carry_out = get_bit(rm, rs_bits_0_7 - 1);
+				}
+				else {
+					if (get_bit(rm, 31) == 0)
+						operand2 = 0; // shifter_carry_out = Rm[31]
+					else 
+						operand2 = 0xFFFFFFFF; // shifter_carry_out = Rm[31]
+					*shifter_carry_out = get_bit(rm, 31);
+				}
+			break;
+
+			case 0b110: // ROR Immediate
+				// here, check bits 7 - 11 to differenciate btw ROR Extend and ROR Immediate
+				// for ROR_Ex, bits 7 - 11 == 0b00000
+				cFlag = get_bit(get_bit(ins, 16), C);
+				val1 = logicalShift(cFlag, 31, 'l');
+				val2 = logicalShift(rm, 1, 'r');
+
+				if (!bits7_11) { // ROR Extend
+					operand2 = val1 | val2; // carryout = rm[0]
+					*shifter_carry_out = get_bit(rm, 0);
+				}
+				else { // ROR Immediate
+					if (!shift_imm) {
+						// see rotate right with extend
+						operand2 = val1 | val2; // carryout = rm[0]
+						*shifter_carry_out = get_bit(rm, 0);
+					}
+					else {
+						operand2 = ror(rm, shift_imm); // shifter_carry_out = Rm[shift_imm - 1]		
+						*shifter_carry_out = get_bit(rm, shift_imm - 1);	
+					}
+				}
+			break;
+
+			case 0b111: // ROR Register
+				// here, Rs is in bits 11 - 8 and bit7 == 0
+				if (rs_bits_0_7 == 0) {
+					operand2 = rm; 
+					*shifter_carry_out = get_bit(arm_read_cpsr(p), C);
+				}
+				else if (rs_bits_0_4 == 0) {
+					operand2 = rm; // carryout is rm[31]
+					*shifter_carry_out = get_bit(rm, 31);
+				}
+				else {
+					operand2 = ror(rm, rs_bits_0_4); // shifter_carry_out = Rm[Rs[4:0] - 1]
+					*shifter_carry_out = get_bit(rm, rs_bits_0_4 - 1);
+				}
+			break;
+
+			default:
+				printf("Invalid data processing shift operation is being executed.!\n");
+		}
+		return operand2;
+
+	}
+
+	uint32_t logicalShift(uint32_t value, uint32_t shift, char direction) {
+	if (direction == 'r')
+		return value >> shift;
+	else if (direction == 'l')
+		return value << shift;
+	else 
+		printf("Invalid shift direction argument! Possible unreliable result!\n");
+	return 0;
+}
 
 	int ConditionPassed(arm_core p, uint8_t cond) {
 
