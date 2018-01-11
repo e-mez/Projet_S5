@@ -50,9 +50,10 @@ int arm_branch(arm_core p, uint32_t ins) {
         /*c'est un BL
          l'instruct courante est mise dans LR, puis branchmt!*/
          uint32_t adr = arm_read_register(p,15);
-         arm_write_register(p, 14, adr);  
+         arm_write_register(p, 14, adr-0x04);  
          x = Extend_30(x, ins) << 2;
          arm_write_register(p,15, arm_read_register(p,15)+x);
+        
       } 
     
      return 0;
