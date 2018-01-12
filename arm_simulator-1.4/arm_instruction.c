@@ -32,10 +32,16 @@
 	void loadStoreByteOrWord(arm_core *p, uint32_t load_store_address, uint32_t rd_value, uint32_t bit20, uint32_t bit22, uint32_t rd);
 	uint32_t shiftedRegisterOperand(arm_core p, uint32_t ins, uint32_t *shifter_carry_out);
 	uint32_t logicalShift(uint32_t value, uint32_t shift, char direction);
+	void update_Flag_Z(arm_core p, int indice);
+    void update_Flag_N(arm_core p, int indice);
+    void update_Flag_C(arm_core p, int indice);
+    void update_Flag_V(arm_core p, int indice);
+    void update_flag(arm_core p, uint64_t operands_result);
 
 	static int arm_execute_instruction(arm_core p) {
-		uint32_t opcode, operand1, operand2, operand3, operands_result, rd, instr, bit25, bit23_24, bits26_27, bits4_11, res, arm_decode;
-		uint32_t shifter_carry_out, load_store_address, alu_out, cpsr, bit20;
+		uint32_t opcode, operand1, operand2, operand3, rd, instr, bit25, bit23_24, bits26_27, bits4_11, res, arm_decode;
+		uint32_t shifter_carry_out, load_store_address, cpsr, bit20;
+		uint64_t operands_result, alu_out;
 		res = arm_fetch(p, &instr);
 		bits26_27 = get_bits(res, 27, 26);
 		bit25 = get_bit(res, 25);
@@ -80,84 +86,137 @@
 						switch(opcode) {
 							case 0b0000: // AND ; Logical AND ; Rd := Rn AND shifter_operand
 								operands_result = operand1 & operand2;
-								arm_write_register(p, rd, operands_result);
+								arm_write_register(p, rd, (uint32_t) operands_result);
+								update_flag(p,operands_result);
 								break;
 
 							case 0b0001: // EOR ; Logical Exclusive OR ; Rd := Rn EOR shifter_operand
 								operands_result = operand1 ^ operand2;
-								arm_write_register(p, rd, operands_result);
+								arm_write_register(p, rd, (uint32_t) operands_result);
+								update_flag(p,operands_result);
 								break;
 
 							case 0b0010: // SUB ; Subtract ; Rd := Rn - shifter_operand
 								operands_result = operand1 - operand2;
-								arm_write_register(p, rd, operands_result);
+								arm_write_register(p, rd, (uint32_t) operands_result);
+								update_flag(p,operands_result);
 								break;
 
 							case 0b0011: // RSB ; Reverse Subtract ; Rd := shifter_operand - Rn
 								operands_result = operand2 - operand1;
-								arm_write_register(p, rd, operands_result);
+								arm_write_register(p, rd, (uint32_t) operands_result);
+								update_flag(p,operands_result);
 								break;
 
 							case 0b0100: // ADD; Add ; Rd := Rn + shifter_operand
 								operands_result = operand1 + operand2;
-								arm_write_register(p, rd, operands_result);
+								arm_write_register(p, rd, (uint32_t) operands_result);
+								update_flag(p,operands_result);
 								break;
 
 							case 0b0101: // ADC ; Add with Carry ; Rd := Rn + shifter_operand + Carry Flag
-								operand3 = get_bit(get_bit(res, 16), C);
+								operand3 = get_bit(arm_read_cpsr(p), C);
 								operands_result = operand1 + operand2 + operand3;
-								arm_write_register(p, rd, operands_result);
+								arm_write_register(p, rd, (uint32_t) operands_result);
+								update_flag(p,operands_result);
 								break;
 
 							case 0b0110: // SBC ; Subtract with Carry ; Rd := Rn - shifter_operand - NOT(Carry Flag)
-								operand3 = get_bit(res, C);
+								operand3 = get_bit(arm_read_cpsr(p), C);
 								if (!operand3) operand3 = 1;
 								else operand3 = 0;
 								operands_result = operand1 - operand2 - operand3;
-								arm_write_register(p, rd, operands_result);
+								arm_write_register(p, rd, (uint32_t) operands_result);
+								update_flag(p,operands_result);
 								break;
 
 							case 0b0111: // RSC ; Reverse Subtract with Carry ; Rd := shifter_operand - Rn - NOT(Carry Flag)
-								operand3 = get_bit(res, C);
+								operand3 = get_bit(arm_read_cpsr(p), C);
 								if (!operand3) operand3 = 1;
 								else operand3 = 0;
 								operands_result = operand2 - operand1 - operand3;
-								arm_write_register(p, rd, operands_result);
+								arm_write_register(p, rd, (uint32_t) operands_result);
+								update_flag(p,operands_result);
 								break;
 
 							case 0b1000: // TST ; Test ; Update flags after Rn AND shifter_operand
 								// If the I bit is 0 and both bit[7] and bit[4] of shifter_operand are 1, the instruction is not TST.
 								alu_out = operand1 & operand2;
-								//set_bit()
+								update_Flag_Z(p, !alu_out);
+								update_Flag_N(p, get_bit(alu_out, 31));
+								update_Flag_C(p, shifter_carry_out);
+								/*
+									N Flag = alu_out[31]
+Z Flag = if alu_out == 0 then 1 else 0
+C Flag = shifter_carry_out
+V Flag = unaffected
+								*/
 							break;
 
 							case 0b1001: // TEQ ; Test Equivalence ; Update flags after Rn EOR shifter_operand
+								alu_out = operand1 | operand2;
+								update_Flag_Z(p, !alu_out);
+								update_Flag_N(p, get_bit(alu_out, 31));
+								update_Flag_C(p, shifter_carry_out);
+								/*
+N Flag = alu_out[31]
+Z Flag = if alu_out == 0 then 1 else 0
+C Flag = shifter_carry_out
+V Flag = unaffected
+*/
 								break;
 
 							case 0b1010: // CMP ; Compare ; Update flags after Rn - shifter_operand
+								alu_out = operand1 - operand2;
+								update_Flag_Z(p, !alu_out);
+								update_Flag_N(p, get_bit(alu_out, 31));
+								if(get_bits(alu_out,63,32)!=0b0) { //dans ce cas y'a retenue et overflow
+						            update_Flag_V(p,1);
+						         	update_Flag_C(p,1);
+						     	}
+/*
+N Flag = alu_out[31]
+Z Flag = if alu_out == 0 then 1 else 0
+C Flag = NOT BorrowFrom(Rn - shifter_operand)
+V Flag = OverflowFrom(Rn - shifter_operand)
+*/
 								break;
 
 							case 0b1011: // CMN ; Compare Negated ; Update flags after Rn + shifter_operand
+								alu_out = operand1 + operand2;
+								update_Flag_Z(p, !alu_out);
+								update_Flag_N(p, get_bit(alu_out, 31));
+								if(get_bits(alu_out,63,32)!=0b0) { //dans ce cas y'a retenue et overflow
+						            update_Flag_V(p,1);
+						         	update_Flag_C(p,1);
+						     	}
+/*
+N Flag = alu_out[31]
+Z Flag = if alu_out == 0 then 1 else 0
+C Flag = CarryFrom(Rn + shifter_operand)
+V Flag = OverflowFrom(Rn + shifter_operand)
+*/
 								break;
 
 							case 0b1100: // ORR ; Logical (inclusive) OR ; Rd := Rn OR shifter_operand
 								operands_result = operand1 | operand2;
-								cpsr = arm_read_cpsr(p);
-
-								arm_write_register(p, rd, operands_result);
+								//cpsr = arm_read_cpsr(p);
+								update_flag(p,operands_result);
+								arm_write_register(p, rd, (uint32_t) operands_result);
 								break;
 
 							case 0b1101: // MOV ; Move ; Rd := shifter_operand (no first operand)
-								arm_write_register(p, rd, operand2);
+								arm_write_register(p, rd, (uint32_t) operand2);
 								break;
 
 							case 0b1110: // BIC ; Bit Clear ; Rd := Rn AND NOT(shifter_operand)
 								operands_result = operand1 & (!operand2);
-								arm_write_register(p, rd, operands_result);
+								arm_write_register(p, rd, (uint32_t) operands_result);
+								update_flag(p,operands_result);
 								break;
 
 							case 0b1111: // MVN ; Move Not ; Rd := NOT shifter_operand (no first operand)
-								arm_write_register(p, rd, !operand2);
+								arm_write_register(p, rd, (uint32_t) !operand2);
 								break;
 						}
 					}
@@ -240,6 +299,51 @@
 			printf("Error during loading or storing a byte or a word to memory\n");
 
 	}
+
+	void update_Flag_Z(arm_core p, int indice){
+	  uint32_t flag = arm_read_cpsr(p);
+		if (indice==1)
+			set_bit(flag, Z);
+		else
+			clr_bit(flag, Z);
+	}
+
+	void update_Flag_N(arm_core p, int indice){
+	  	uint32_t flag = arm_read_cpsr(p);
+		if (indice==1)
+			set_bit(flag, N);
+		else
+			clr_bit(flag, N);
+	}
+
+void update_Flag_C(arm_core p, int indice){
+  uint32_t flag = arm_read_cpsr(p);
+	if (indice==1)
+		set_bit(flag, C);
+	else
+		clr_bit(flag, C);
+}
+
+void update_Flag_V(arm_core p, int indice){
+  uint32_t flag = arm_read_cpsr(p);
+	if (indice==1)
+		set_bit(flag, V);
+	else
+		clr_bit(flag, V);
+}
+void update_flag(arm_core p, uint64_t operands_result){
+   uint32_t flag = arm_read_cpsr(p);
+   if(get_bit(flag,20)==1){ //si S==1 
+         if(operands_result==0)
+             update_Flag_Z(p,1);
+         if(get_bit(operands_result,31)==1)
+             update_Flag_N(p,1);
+         if(get_bits(operands_result,63,32)!=0b0) { //dans ce cas y'a retenue et overflow
+             update_Flag_V(p,1);
+         	update_Flag_C(p,1);
+     	}
+    }
+}
 
 	uint32_t shiftedRegisterOperand(arm_core p, uint32_t ins, uint32_t *shifter_carry_out) {
 		uint32_t bits4_6, bits7_11, operand2, rm, rs, rs_bits_0_7, rs_bits_0_4, shift_imm, val1, val2, cFlag;
